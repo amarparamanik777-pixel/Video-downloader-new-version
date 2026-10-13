@@ -1,0 +1,48 @@
+name: Build Android app
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Arrange project files
+        run: |
+          d=app/src/main/java/com/example/videodownloader
+          mkdir -p "$d"
+          [ -f MainActivity.kt ] && mv MainActivity.kt "$d/" || true
+          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
+          [ -f app.gradle.kts ] && mv app.gradle.kts app/build.gradle.kts || true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VideoDownloader-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Publish release with the APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Video Downloader build ${{ github.run_number }}
+          files: app/build/outputs/apk/debug/*.apk
